@@ -189,9 +189,11 @@ function util.download_url(version)
 end
 
 function util.sha256(url)
-  -- http.get raises on connection errors; the checksum is optional, so use
-  -- try_get to fall back to no checksum instead of aborting the install.
-  local resp, err = http.try_get({ url = url .. ".sha256" })
+  -- mise's http.get raises on connection errors (try_get returns them);
+  -- official vfox's http.get already returns (resp, err). The checksum is
+  -- optional, so fall back to no checksum instead of aborting the install.
+  local get = http.try_get or http.get
+  local resp, err = get({ url = url .. ".sha256" })
   if err ~= nil or resp == nil or resp.status_code ~= 200 then
     return nil
   end
