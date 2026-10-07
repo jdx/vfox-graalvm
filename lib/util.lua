@@ -67,40 +67,40 @@ local function major(version)
   return tonumber(version:match("^(%d+)"))
 end
 
-local function os_arch_new_format()
+local function host_os()
   if OS_TYPE == "darwin" or OS_TYPE == "macos" then
-    if ARCH_TYPE == "arm64" or ARCH_TYPE == "aarch64" then
-      return "macos-aarch64"
-    end
-    if ARCH_TYPE == "amd64" or ARCH_TYPE == "x86_64" or ARCH_TYPE == "x64" then
-      return "macos-x64"
-    end
-    error("GraalVM is not available for architecture " .. tostring(ARCH_TYPE))
+    return "macos"
   end
-  if OS_TYPE ~= "linux" then
-    error("GraalVM is not available for OS " .. tostring(OS_TYPE))
+  if OS_TYPE == "linux" then
+    return "linux"
   end
+  error("GraalVM is not available for OS " .. tostring(OS_TYPE))
+end
+
+local function host_arch()
   if ARCH_TYPE == "arm64" or ARCH_TYPE == "aarch64" then
-    return "linux-aarch64"
+    return "aarch64"
   end
   if ARCH_TYPE == "amd64" or ARCH_TYPE == "x86_64" or ARCH_TYPE == "x64" then
-    return "linux-x64"
+    return "x64"
   end
   error("GraalVM is not available for architecture " .. tostring(ARCH_TYPE))
 end
 
+local function os_arch_new_format()
+  return host_os() .. "-" .. host_arch()
+end
+
 local function old_variant(version)
-  if OS_TYPE == "darwin" or OS_TYPE == "macos" then
-    if ARCH_TYPE == "arm64" or ARCH_TYPE == "aarch64" then
-      error("old GraalVM archive format is not available for macOS arm64")
-    end
+  local os_name = host_os()
+  if host_arch() ~= "x64" then
+    error("old GraalVM archive format is not available for " .. os_name .. " " .. tostring(ARCH_TYPE))
+  end
+  if os_name == "macos" then
     if major(version) == 1 then
       return "macos-amd64"
     end
     return "darwin-amd64"
-  end
-  if ARCH_TYPE == "arm64" or ARCH_TYPE == "aarch64" then
-    error("old GraalVM archive format is not available for linux arm64")
   end
   return "linux-amd64"
 end

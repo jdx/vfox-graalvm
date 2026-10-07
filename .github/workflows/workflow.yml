@@ -6,6 +6,9 @@ on:
   schedule:
     - cron: 0 0 * * 5
 
+permissions:
+  contents: read
+
 jobs:
   test:
     strategy:
@@ -24,6 +27,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
       - uses: jdx/mise-action@9149ea85001c7435d5a66bb127d6a1b6227cb0a5 # v5
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -62,12 +67,38 @@ jobs:
           grep -F '21.0.2' out.txt
           mise x graalvm@21.0.2 -- sh -c 'test -n "$GRAALVM_HOME" && test "$JAVA_HOME" = "$GRAALVM_HOME" && test -x "$GRAALVM_HOME/bin/java"'
 
+      # Old-format (graalvm-ce-builds vm-*) routing; only linux-amd64 archives exist.
+      - name: Test old GraalVM installation
+        if: runner.os == 'Linux' && runner.arch == 'X64'
+        shell: bash
+        run: |
+          mise i graalvm@22.0.0.2-java11
+          mise x graalvm@22.0.0.2-java11 -- java -version 2>&1 | tee out.txt
+          grep -F '22.0.0.2' out.txt
+
+      - name: Test old GraalVM is rejected on macOS arm64
+        if: runner.os == 'macOS' && runner.arch == 'ARM64'
+        shell: bash
+        run: |
+          if mise i graalvm@22.0.0.2-java11 > out.txt 2>&1; then
+            echo "ERROR: install unexpectedly succeeded"
+            exit 1
+          fi
+          cat out.txt
+          grep -F 'old GraalVM archive format is not available' out.txt
+
       - name: Test unsupported OS is rejected
         if: runner.os == 'Windows'
         shell: bash
         run: |
           if mise i graalvm@21.0.2 > out.txt 2>&1; then
             echo "ERROR: install unexpectedly succeeded on Windows"
+            exit 1
+          fi
+          cat out.txt
+          grep -F 'GraalVM is not available for OS' out.txt
+          if mise i graalvm@22.0.0.2-java11 > out.txt 2>&1; then
+            echo "ERROR: old-format install unexpectedly succeeded on Windows"
             exit 1
           fi
           cat out.txt
